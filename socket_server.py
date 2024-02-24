@@ -9,6 +9,10 @@ max_players = 2
 
 players = []
 
+player1_points = 0
+player2_points = 0
+tie = 0
+
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((host, port))
 server.listen(1)
@@ -50,7 +54,7 @@ def broadcast(message):
 def start_game():
     broadcast("[*] Starting!\n")
 
-    while True:
+    for x in range(10):
         broadcast("Go for it! Choose your move: Rock (R), Paper (P) or Scissors (S)\n")
         moves = []
         for player in players:
@@ -65,7 +69,14 @@ def start_game():
                 result = determineWinner(moves)
                 broadcast(result)
 
+    broadcast("\n[*] End!")
+    #stopGame()
+
 def determineWinner(moves):                     # QUALCHE PROBLEMINO QUI...
+    global player1_points
+    global player2_points
+    global tie
+
     player1, move1 = moves[0]
     player2 , move2 = moves[1]
 
@@ -76,20 +87,32 @@ def determineWinner(moves):                     # QUALCHE PROBLEMINO QUI...
     print(move2)
 
     if move1 == move2:
-        return "It's a tie!"
+        tie += 1
+        return "\nIt's a tie!\n"
     
-    elif (move1 == 'ROCK' and move2 == 'SCISSORS') or \
-         (move1 == 'PAPER' and move2 == 'ROCK') or \
-         (move1 == 'SCISSOSRS' and move2 == 'PAPER'):
-        return f"{player1} wins!"
+    # Sequenza uno ad uno perchè si
+    if move1 == "ROCK" and move2 == "PAPER":
+        player2_points += 1
+        return f"\n{player2} wins!\n"
     
-   # elif (move2 == 'ROCK' and move1 == 'SCISSORS') or \
-   #      (move2 == 'PAPER' and move1 == 'ROCK') or \
-   #      (move2 == 'SCISSORS' and move1 == 'PAPER'):
-   #     return f"{player2[2]} vince!"
+    if move1 == "PAPER" and move2 == "SCISSORS":
+        player2_points += 1
+        return f"\n{player2} wins!\n"
+    
+    if move1 == "SCISSORS" and move2 == "ROCK":
+        player2_points += 1
+        return f"\n{player2} wins!\n"
+    
     else:
-        return f"{player2} wins!"
+        player1_points += 1
+        return f"\n{player1} wins!\n"
 
+#def stopGame():
+#    global player1_points
+#    global player2_points
+#    global tie
+#
+#    broadcast(f"Score:\n ")
 
 
 while True:
