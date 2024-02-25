@@ -96,8 +96,16 @@ def multiplayer():
     nickname = input("Insert your nickname: ")
     client_socket.sendall(nickname.encode("utf-8"))
 
-    while True:
+    while True:                                             # aggiungere dei try-except qua per la gestione dei crash/errori
         data = client_socket.recv(1024).decode("utf-8")
+
+        if not data:
+            print("[-] Disconnected from the server.")
+            print("[*] Back to the lobby...")
+            time.sleep(3)
+            lobby()
+            break
+
         print(data)
 
         if "Choose your move:" in data:

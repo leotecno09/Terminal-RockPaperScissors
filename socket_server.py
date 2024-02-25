@@ -1,7 +1,8 @@
 import socket
 import threading
 import time
-import pickle
+import win32api
+import sys
 
 host = '0.0.0.0'
 port = 5000
@@ -18,19 +19,37 @@ server.bind((host, port))
 server.listen(1)
 print("[*] Listening on", port)
 
-def handle_client(client_socket, client_address):               # FORSE HO ROTTO TUTTO CON I TRY
-    print(f"[+] Player joined! {client_address}")
+def close_server(signal_type):
+    confirm = str(input("[*] Are you sure you want to close the server? (y/n) "))
+    confirm = confirm.upper()
 
+    if confirm == "Y":
+        print("[*] Closing!")
+        sys.exit(0)
+        #break
+        
+    else:
+        print("[*] Nothing changed, i'm still running!")
+
+win32api.SetConsoleCtrlHandler(close_server, True)
+
+def handle_client(client_socket, client_address):
     try:
         nickname = client_socket.recv(1024).decode('utf-8').strip()
-        #print(nickname)
 
+        for player in players:                          # ovviamente non funziona, da ricontrollare
+            if player[2] == nickname:
+                print(f"[-] Connection from {client_address} refused. Nickname already exists.")
+                client_socket.close()
+            #print(nickname)
+
+        print(f"[+] Player joined! {client_address}")
         players.append((client_socket, client_address, nickname))
-        
+            
         player_list = "\n".join([f"{i+1}. {player[2]}" for i, player in enumerate(players)]) # Senza ChatGPT non avrei saputo minimamente farlo
         broadcast("\nConnected players:\n" + player_list)
 
-        #broadcast(f"Connected players: \n1. {}")
+            #broadcast(f"Connected players: \n1. {}")
 
         if len(players) == max_players:
             #start_game()
@@ -39,17 +58,25 @@ def handle_client(client_socket, client_address):               # FORSE HO ROTTO
 
             broadcast("\n[+] Second player joined!")
             start_game()
-        
+            
         else:
             broadcast("\n[*] Waiting for second player...")
-
-    except ConnectionAbortedError:
-        print(f"[!] Connection lost with {client_address}")
-        return
     
-    finally:
+    except ConnectionAbortedError or ConnectionResetError:
+        print(f"[!] Client lost connection: {client_address}")
         players.remove((client_socket, client_address, nickname))
         client_socket.close()
+        print(players)
+        print(client_socket)
+
+    #except ConnectionAbortedError:
+    #    print(f"[!] Connection lost with {client_address}")
+    #    return
+    #
+    #finally:
+    #    if nickname:
+    #        players.remove((client_socket, client_address, nickname))
+    #    client_socket.close()
 
 def broadcast(message):
     for player in players:
@@ -70,20 +97,28 @@ def start_game():
 
     broadcast("[*] Starting!\n")
 
-    for x in range(3):
-        broadcast("Go for it! Choose your move: Rock (R), Paper (P) or Scissors (S)\n")
-        moves = []
-        for player in players:
-            client_socket, client_address, nickname = player
+    try:
+        for x in range(3):
+            broadcast("Go for it! Choose your move: Rock (R), Paper (P) or Scissors (S)\n")
+            moves = []
+            for player in players:
+                client_socket, client_address, nickname = player
 
-            move = client_socket.recv(1024).decode("utf-8").strip().lower()
-            move = move.upper()
+                move = client_socket.recv(1024).decode("utf-8").strip().lower()
+                move = move.upper()
 
-            moves.append((nickname, move))
+                moves.append((nickname, move))
 
-            if len(moves) == max_players:
-                result = determineWinner(moves)
-                broadcast(result)
+                if len(moves) == max_players:
+                    result = determineWinner(moves)
+                    broadcast(result)
+        
+    except ConnectionResetError:
+        print(f"[!] Client lost connection during a game: {client_address}")
+        players.remove((client_socket, client_address, nickname))
+        client_socket.close()
+        broadcast("\n[!] A client disconnected from the server. This game is over, resetting the server.")
+        resetServer()
 
     broadcast("\n[*] End!\n")
     stopGame(moves)
@@ -187,11 +222,20 @@ def resetServer():
 
     print("[*] Server resetted, ready for a new game.")
 
+def refuseClient(client_address):
+    if len(players) >= 2:
+        print(f"[-] Connection from {client_address} refused. Too many players!")
+        return False
+    
+    return True
 
 while True:
     client_socket, client_address = server.accept()
 
-    client_thread = threading.Thread(target=handle_client, args=(client_socket, client_address))
-    client_thread.start()
+    if refuseClient(client_address):
+        client_thread = threading.Thread(target=handle_client, args=(client_socket, client_address))
+        client_thread.start()
 
+    else:
+        client_socket.close()
 
