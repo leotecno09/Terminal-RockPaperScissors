@@ -1,6 +1,7 @@
 import socket
 import os
 import time
+import threading
 
 def clear_terminal():
     if os.name == 'nt':
@@ -22,6 +23,18 @@ def lobby():
 
     if gamemode == "1" or gamemode == "MULTIPLAYER":
         multiplayer()
+
+def receiveMessage(client_socket):
+    while True:
+        data = client_socket.recv(1024).decode("utf-8")
+
+        if not data:
+            print("[-] Disconnected from the server.")
+            print("[*] Back to the lobby...")
+            time.sleep(3)
+            lobby()
+
+        print(data)
 
 def multiplayer():
     '''while True:
@@ -96,18 +109,11 @@ def multiplayer():
     nickname = input("Insert your nickname: ")
     client_socket.sendall(nickname.encode("utf-8"))
 
-    while True:                                             # aggiungere dei try-except qua per la gestione dei crash/errori
+    threading.Thread(target=receiveMessage, args=(client_socket,), daemon=True).start()
+
+    while True:
         data = client_socket.recv(1024).decode("utf-8")
-
-        if not data:
-            print("[-] Disconnected from the server.")
-            print("[*] Back to the lobby...")
-            time.sleep(3)
-            lobby()
-            break
-
-        print(data)
-
+                                                    # aggiungere dei try-except qua per la gestione dei crash/errori
         if "Choose your move:" in data:
             move = input()
             client_socket.sendall(move.encode("utf-8"))
@@ -116,6 +122,9 @@ def multiplayer():
             answer = input()
             client_socket.sendall(answer.encode("utf-8"))
 
+        if "Nickname already in use" in data:
+            nickname = input()
+            client_socket.sendall(nickname.encode('utf-8'))
 
 if __name__ == "__main__":
     lobby()
