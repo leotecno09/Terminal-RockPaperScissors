@@ -24,18 +24,6 @@ def lobby():
     if gamemode == "1" or gamemode == "MULTIPLAYER":
         multiplayer()
 
-def receiveMessage(client_socket):
-    while True:
-        data = client_socket.recv(1024).decode("utf-8")
-
-        if not data:
-            print("[-] Disconnected from the server.")
-            print("[*] Back to the lobby...")
-            time.sleep(3)
-            lobby()
-
-        print(data)
-
 def multiplayer():
     '''while True:
         try:
@@ -109,22 +97,47 @@ def multiplayer():
     nickname = input("Insert your nickname: ")
     client_socket.sendall(nickname.encode("utf-8"))
 
-    threading.Thread(target=receiveMessage, args=(client_socket,), daemon=True).start()
-
     while True:
-        data = client_socket.recv(1024).decode("utf-8")
-                                                    # aggiungere dei try-except qua per la gestione dei crash/errori
-        if "Choose your move:" in data:
-            move = input()
-            client_socket.sendall(move.encode("utf-8"))
+        try:
+            data = client_socket.recv(1024).decode("utf-8")
+            print(data)
 
-        if "Wanna play again?" in data:
-            answer = input()
-            client_socket.sendall(answer.encode("utf-8"))
+            if not data:
+                print("[-] Disconnected from the server.")
+                print("[*] Back to the lobby...")
+                time.sleep(5)
+                lobby()
+                break
 
-        if "Nickname already in use" in data:
-            nickname = input()
-            client_socket.sendall(nickname.encode('utf-8'))
+            if "Choose your move:" in data:
+                move = input()
+                client_socket.sendall(move.encode("utf-8"))
+
+            if "Wanna play again?" in data:
+                answer = input()
+                client_socket.sendall(answer.encode("utf-8"))
+
+            if "Nickname already in use" in data:
+                nickname = input()
+                client_socket.sendall(nickname.encode('utf-8'))
+
+            if "Incorrect move" in data:
+                move = input()
+                client_socket.sendall(move.encode("utf-8"))
+        
+        except ConnectionAbortedError:
+            print("[!] Error: Disconnected (ConnectionAbortedError)")
+            print("[*] Back to the lobby...")
+            time.sleep(5)
+            lobby()
+            break
+
+        except ConnectionResetError:
+            print("[!] Error: Disconnected (ConnectionResetError)")
+            print("[*] Back to the lobby...")
+            time.sleep(5)
+            lobby()
+            break
 
 if __name__ == "__main__":
     lobby()

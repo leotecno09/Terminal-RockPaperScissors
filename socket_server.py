@@ -2,20 +2,27 @@ import socket
 import threading
 import time
 import win32api
-import sys
-import configparser
 
-def read_config(filename):
-    config = configparser.ConfigParser()
-    config.read(filename)
-    return config
+def read_config(key, filename="config.cfg"):
+    with open(filename, "r") as file:
+        for line in file:
+            if line.startswith(key):
+                value = line.split("=")[1].strip()
 
-def get_config(filename, section, option):
-    config = read_config(filename)
-    return str(config.set(section, option))
+                try:
+                    value = int(value)
+                
+                except ValueError:
+                    pass
 
-host = "0.0.0.0" #get_config('server.config', 'Server', 'ip')
-port = 5000 #int(get_config('server.config', 'Server', 'port'))
+                return value
+        
+    return f"{key} not found in 'config.cfg'"
+
+
+host = read_config("IP")
+port = read_config("PORT")
+
 max_players = 2
 
 players = []
@@ -31,13 +38,15 @@ server.bind((host, port))
 server.listen(1)
 print("[*] Listening on", port)
 
-def close_server(signal_type):                          # DA RIVEDERE, NON FUNZIONA MOLTO BENE
+def close_server(signal_type):
     confirm = str(input("[*] Are you sure you want to close the server? (y/n) "))
     confirm = confirm.upper()
 
     if confirm == "Y":
         print("[*] Closing!")
-        sys.exit(0)
+        server.close()
+        time.sleep(5)
+        exit()
         #break
         
     else:
@@ -73,7 +82,6 @@ def handle_client(client_socket, client_address):
         else:
             broadcast("\n[*] Waiting for second player...")
 
-    
     #except ConnectionAbortedError or ConnectionResetError:
     #    print(f"[!] Client lost connection: {client_address}")
     #    players.remove((client_socket, client_address, nickname))
@@ -104,44 +112,49 @@ def start_game():
     player2_points = 0
     tie = 0
 
-    #rounds = int(read_config('server.config', 'Server', 'rounds'))
-    #print(rounds)
+    rounds = read_config("ROUNDS")
+    print("[*] Number of rounds: ", rounds)
 
-    rounds = 3
+    #rounds = 3
 
     broadcast("\n[*] The game will start in 10 seconds...")
     time.sleep(10)
 
     broadcast("[*] Starting!\n")
 
-    #try:
-    for x in range(rounds):
-        broadcast("Go for it! Choose your move: Rock (R), Paper (P) or Scissors (S)\n")
-        moves = []
-        for player in players:
-            client_socket, client_address, nickname = player
+    try:
+        for x in range(rounds):
+            broadcast("Go for it! Choose your move: Rock (R), Paper (P) or Scissors (S)\n")
+            moves = []
+            for player in players:
+                client_socket, client_address, nickname = player
 
-            move = client_socket.recv(1024).decode("utf-8").strip().lower()
-            move = move.upper()
+                move = client_socket.recv(1024).decode("utf-8").strip().lower()
+                move = move.upper()
 
-            moves.append((nickname, move))
+                while move not in ['ROCK', 'PAPER', 'SCISSORS', 'R', 'P', 'S']:                                     # non funziona molto bene
+                    client_socket.send("Incorrect move, please type Rock, Paper or Scissors.\n".encode("utf-8"))
+                    move = client_socket.recv(1024).decode("utf-8").strip().lower()
+                    move = move.upper()
 
-            if len(moves) == max_players:
-                result = determineWinner(moves)
-                broadcast(result)
+                moves.append((nickname, move))
+
+                if len(moves) == max_players:
+                    result = determineWinner(moves)
+                    broadcast(result)
         
-    #except ConnectionResetError:
-    #    print(f"[!] Client lost connection during a game: {client_address}")
-    #    print(client_socket)
-    #    players.remove((client_socket, client_address, nickname))
-    #    client_socket.close()
-    #    broadcast("\n[!] A client disconnected from the server. This game is over, resetting the server.")
-    #    resetServer()
+    except ConnectionResetError:
+        print(f"[!] Client lost connection during a game: {client_address}")
+        print(client_socket)
+        players.remove((client_socket, client_address, nickname))
+        client_socket.close()
+        broadcast("\n[!] A client disconnected from the server. This game is over, resetting the server.")
+        resetServer()
 
     broadcast("\n[*] End!\n")
     stopGame(moves)
 
-def checkPlayerConnection():
+"""def checkPlayerConnection():
         disconnected_players = []
 
         for client_socket, client_address, nickname in players:
@@ -162,7 +175,7 @@ def checkPlayerConnection():
                 time.sleep(2)
                 resetServer()
 
-        time.sleep(1)           
+        time.sleep(1)"""         
 
 def determineWinner(moves):
     #print (moves)
@@ -185,15 +198,15 @@ def determineWinner(moves):
         return "\nIt's a tie!\n"
     
     # Sequenza uno ad uno perchè si --- da mettere che legge anche sole lettere
-    if move1 == "ROCK" and move2 == "PAPER":
+    if move1 == "ROCK" and move2 == "PAPER" or move1 == "R" and move2 == "P":
         player2_points += 1
         return f"\n{player2} wins!\n"
     
-    if move1 == "PAPER" and move2 == "SCISSORS":
+    if move1 == "PAPER" and move2 == "SCISSORS" or move1 == "P" and move2 == "S":
         player2_points += 1
         return f"\n{player2} wins!\n"
     
-    if move1 == "SCISSORS" and move2 == "ROCK":
+    if move1 == "SCISSORS" and move2 == "ROCK" or move1 == "S" and move2 == "R":
         player2_points += 1
         return f"\n{player2} wins!\n"
     
@@ -262,7 +275,7 @@ def resetServer():
     player2_points = 0
     tie = 0
 
-    threadsRunning = False
+    threadsRunning = False                  # DA IMPLEMENTARE SE POSSIBILE
 
     print("[*] Server resetted, ready for a new game.")
 
@@ -278,7 +291,7 @@ while True:
 
     if refuseClient(client_address):
         client_thread = threading.Thread(target=handle_client, args=(client_socket, client_address))
-        threading.Thread(target=checkPlayerConnection, daemon=True).start()
+        #threading.Thread(target=checkPlayerConnection, daemon=True).start()
         client_thread.start()
 
     else:
