@@ -32,6 +32,7 @@ player2_points = 0
 tie = 0
 
 threadsRunning = True
+game_started = False
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((host, port))
@@ -55,43 +56,57 @@ def close_server(signal_type):
 win32api.SetConsoleCtrlHandler(close_server, True)
 
 def handle_client(client_socket, client_address):
-    #try:
+    try:
         nickname = client_socket.recv(1024).decode('utf-8').strip()
+    
+    except (ConnectionAbortedError, ConnectionResetError) as e:
+        print(f"[!] Client lost connection: {client_address} ({e})")
+        for player in players:
+            if player[:2] == (client_socket, client_address):
+                players.remove(player)
+                break
+
+            client_socket.close()
+            print(players)
+            print(client_socket)
         
-        while any(player[2] == nickname for player in players):
-            client_socket.send("Nickname already in use. Please choose a different one:".encode("utf-8"))
-            nickname = client_socket.recv(1024).decode('utf-8').strip()
+    while any(player[2] == nickname for player in players):
+        client_socket.send("Nickname already in use. Please choose a different one:".encode("utf-8"))
+        nickname = client_socket.recv(1024).decode('utf-8').strip()
             #print(nickname)
 
-        print(f"[+] Player joined! {client_address}")
-        players.append((client_socket, client_address, nickname))
+    print(f"[+] Player joined! {client_address}")
+    players.append((client_socket, client_address, nickname))
             
-        player_list = "\n".join([f"{i+1}. {player[2]}" for i, player in enumerate(players)]) # Senza ChatGPT non avrei saputo minimamente farlo
-        broadcast("\nConnected players:\n" + player_list)
+    player_list = "\n".join([f"{i+1}. {player[2]}" for i, player in enumerate(players)]) # Senza ChatGPT non avrei saputo minimamente farlo
+    broadcast("\nConnected players:\n" + player_list)
 
             #broadcast(f"Connected players: \n1. {}")
 
-        if len(players) == max_players:
-            #start_game()
-            #start
-            print("[*] Starting game!")
+    if len(players) == max_players:
+                #start_game()
+                #start
+        print("[*] Starting game!")
 
-            broadcast("\n[+] Second player joined!")
-            start_game()
-            
-        else:
-            broadcast("\n[*] Waiting for second player...")
+        broadcast("\n[+] Second player joined!")
+        start_game()
+                
+    else:
+        broadcast("\n[*] Waiting for second player...") # SE UN CLIENT SI DISCONNETTE QUI, IL SERVER NON LO RILEVA!               
+        try:
+            client_status = client_socket.recv(1024).decode('utf-8').strip()
+            print(client_status)
 
-    #except ConnectionAbortedError or ConnectionResetError:
-    #    print(f"[!] Client lost connection: {client_address}")
-    #    players.remove((client_socket, client_address, nickname))
-    #    client_socket.close()
-    #    print(players)
-    #    print(client_socket)
+        except ConnectionResetError as e:
+            print(f"[!] Client lost connection: {client_address} ({e})")            # ho tolto "while not game_started" e non va più un caz, da rivedereeee
+            for player in players:
+                if player[:2] == (client_socket, client_address):
+                    players.remove(player)
+                    break
 
-    #except ConnectionAbortedError:
-    #    print(f"[!] Connection lost with {client_address}")
-    #    return
+                client_socket.close()
+                print(players)
+                print(client_socket)              
     #
     #finally:
     #    if nickname:
@@ -104,6 +119,7 @@ def broadcast(message):
         client_socket.sendall(message.encode("utf-8"))
 
 def start_game():
+    game_started = True
     global player1_points
     global player2_points
     global tie

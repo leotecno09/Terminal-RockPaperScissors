@@ -81,14 +81,16 @@ def multiplayer():
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    server_address = input("Insert the server IP: ")
+    server_address = str(input("Insert the server IP: "))               # DA METTERE CHE VADA ANCHE STRING
     server_port = input("Insert the server port (default 5000): ")
 
     if server_port == "":
         server_port = 5000
-            
+
     host = server_address
     port = server_port
+    
+
     client_socket.connect((host, port))
 
     clear_terminal()
@@ -124,6 +126,9 @@ def multiplayer():
             if "Incorrect move" in data:
                 move = input()
                 client_socket.sendall(move.encode("utf-8"))
+
+            if "Waiting for second player" in data:
+                client_socket.sendall("alive".encode("utf-8"))
         
         except ConnectionAbortedError:
             print("[!] Error: Disconnected (ConnectionAbortedError)")
