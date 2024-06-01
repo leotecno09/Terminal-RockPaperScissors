@@ -1,0 +1,7 @@
+*** RECOMPILED THE LOG ON 2024-06-01 ***
+[01/06/2024 14:09:10] -> [INFO] Server started
+[01/06/2024 14:09:22] -> [INFO] Player joined ('127.0.0.1', 54899)
+[01/06/2024 14:09:47] -> [INFO] Player joined ('127.0.0.1', 54911)
+[01/06/2024 14:09:57] -> [INFO] Game started
+[01/06/2024 14:10:25] -> [INFO] Server resetted
+[01/06/2024 14:11:20] -> [INFO] Server closed

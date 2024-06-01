@@ -1,5 +1,6 @@
 import socket
 import os
+import sys
 import time
 import threading
 
@@ -13,7 +14,7 @@ def clear_terminal():
 def lobby():
     clear_terminal()
 
-    print("Welcome to Terminal-RockPaperScissors!")
+    print("Welcome to Terminal-RockPaperScissors! (Made by LeoTecno v1.0)")
     print("\nChoose an option:\n")
     print("1. Multiplayer")
     print("2. Quit")
@@ -23,6 +24,15 @@ def lobby():
 
     if gamemode == "1" or gamemode == "MULTIPLAYER":
         multiplayer()
+
+    if gamemode == "2" or gamemode == "QUIT":
+        print("Bye!")
+        sys.exit(0)
+
+    else:
+        print("Please choose a vaild option.")
+        time.sleep(3)
+        lobby()
 
 def multiplayer():
     '''while True:
@@ -34,14 +44,14 @@ def multiplayer():
 
             if server_port == "":
                 server_port = 5000
-            
+
             host = server_address
             port = server_port
             client_socket.connect((host, port))
 
             clear_terminal()
             print("[*] Connected!")
-            
+
             connected = True
 
             nickname = input("Insert your nickname: ")
@@ -55,7 +65,7 @@ def multiplayer():
                 if "Choose your move:" in data:
                     move = input()
                     client_socket.sendall(move.encode("utf-8"))
-                    
+
                 if "Wanna play again?" in data:
                     answer = input()
                     client_socket.sendall(answer.encode("utf-8"))
@@ -69,29 +79,47 @@ def multiplayer():
 
         except Exception as e:
             print(f"[!] An error occurred: {e}")
-            
+
         finally:
             client_socket.close()
 
             print("[*] Back to the lobby...")
             time.sleep(3)
             lobby()'''
-    
+
 
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     server_address = str(input("Insert the server IP: "))               # DA METTERE CHE VADA ANCHE STRING
-    server_port = input("Insert the server port (default 5000): ")
+    server_port = int(input("Insert the server port (default 5000): "))
 
     if server_port == "":
         server_port = 5000
 
     host = server_address
     port = server_port
-    
 
-    client_socket.connect((host, port))
+    try:
+        client_socket.connect((host, port))
+
+    except ConnectionRefusedError:
+        print("[!] Error: Connection refused by the server.")
+        print("[*] Back to the lobby...")
+        time.sleep(5)
+        lobby()
+
+    except socket.gaierror:
+        print("[!] Error: The IP address could not be found (socket.gaierror)")
+        print("[*] Back to the lobby...")
+        time.sleep(5)
+        lobby()
+
+    except TimeoutError:
+        print("[!] Error: Unable to establish a connection with the server. (TimeoutError)")
+        print("[*] Back to the lobby...")
+        time.sleep(5)
+        lobby()
 
     clear_terminal()
     print("[*] Connected!")
@@ -129,7 +157,7 @@ def multiplayer():
 
             if "Waiting for second player" in data:
                 client_socket.sendall("alive".encode("utf-8"))
-        
+
         except ConnectionAbortedError:
             print("[!] Error: Disconnected (ConnectionAbortedError)")
             print("[*] Back to the lobby...")

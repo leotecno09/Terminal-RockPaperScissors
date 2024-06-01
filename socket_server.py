@@ -2,6 +2,7 @@ import socket
 import threading
 import time
 import win32api
+from datetime import datetime, date
 
 def read_config(key, filename="config.cfg"):
     with open(filename, "r") as file:
@@ -22,6 +23,7 @@ def read_config(key, filename="config.cfg"):
 
 host = read_config("IP")
 port = read_config("PORT")
+enable_log = read_config("ENABLE_LOG")
 
 max_players = 2
 
@@ -39,12 +41,27 @@ server.bind((host, port))
 server.listen(1)
 print("[*] Listening on", port)
 
+log = open("latest_log.txt", "w")
+log.write(f"*** RECOMPILED THE LOG ON {date.today()} ***\n")
+log.close()
+
+def log_event(type, event):
+    if enable_log:
+        now = datetime.now()
+        time = now.strftime("%d/%m/%Y %H:%M:%S")
+
+        with open('latest_log.txt', 'a') as log:
+                log.write(f"[{time}] -> [{type}] {event}\n")
+
+log_event("INFO", "Server started")
+
 def close_server(signal_type):
     confirm = str(input("[*] Are you sure you want to close the server? (y/n) "))
     confirm = confirm.upper()
 
     if confirm == "Y":
         print("[*] Closing!")
+        log_event("INFO", "Server closed")
         server.close()
         time.sleep(5)
         exit()
@@ -61,6 +78,11 @@ def handle_client(client_socket, client_address):
     
     except (ConnectionAbortedError, ConnectionResetError) as e:
         print(f"[!] Client lost connection: {client_address} ({e})")
+        message = "Client lost connection {} ({})"
+        f_message = message.format(client_address, e)
+        
+        log_event("WARNING", f_message)
+
         for player in players:
             if player[:2] == (client_socket, client_address):
                 players.remove(player)
@@ -76,6 +98,11 @@ def handle_client(client_socket, client_address):
             #print(nickname)
 
     print(f"[+] Player joined! {client_address}")
+    message = "Player joined {}"
+    f_message = message.format(client_address)
+
+    log_event("INFO", f_message)
+
     players.append((client_socket, client_address, nickname))
             
     player_list = "\n".join([f"{i+1}. {player[2]}" for i, player in enumerate(players)]) # Senza ChatGPT non avrei saputo minimamente farlo
@@ -99,6 +126,11 @@ def handle_client(client_socket, client_address):
 
         except ConnectionResetError as e:
             print(f"[!] Client lost connection: {client_address} ({e})")            # ho tolto "while not game_started" e non va più un caz, da rivedereeee
+            message = "Client lost connection {} ({})"
+            f_message = message.format(client_address, e)
+            
+            log_event("WARNING", f_message)
+
             for player in players:
                 if player[:2] == (client_socket, client_address):
                     players.remove(player)
@@ -137,6 +169,7 @@ def start_game():
     time.sleep(10)
 
     broadcast("[*] Starting!\n")
+    log_event("INFO", "Game started")
 
     try:
         for x in range(rounds):
@@ -161,6 +194,11 @@ def start_game():
         
     except ConnectionResetError:
         print(f"[!] Client lost connection during a game: {client_address}")
+        message = "Client lost connection during a game {}"
+        f_message = message.format(client_address)
+
+        log_event("WARNING", f_message)
+
         print(client_socket)
         players.remove((client_socket, client_address, nickname))
         client_socket.close()
@@ -294,10 +332,16 @@ def resetServer():
     threadsRunning = False                  # DA IMPLEMENTARE SE POSSIBILE
 
     print("[*] Server resetted, ready for a new game.")
+    log_event("INFO", "Server resetted")
 
 def refuseClient(client_address):
     if len(players) >= 2:
         print(f"[-] Connection from {client_address} refused. Too many players!")
+        message = "Connection from {} was refused due too many players."
+        f_message = message.format(client_address)
+
+        log_event("ERROR", f_message)
+
         return False
     
     return True
